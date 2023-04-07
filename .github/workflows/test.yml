@@ -49,8 +49,16 @@ jobs:
     - name: What files where changed?
       run: |
         echo ${{ steps.changed-files.outputs.all_changed_and_modified_files }}
-        
-    - run: npm run full-test-ci
+
+    - name: Run selective lint & full test (if pull request)
+      run: npm run full-test-ci
+      if: ${{ github.event_name == 'pull_request' }}
       env:
         CI: true
         FILES: ${{ steps.changed-files.outputs.all_changed_and_modified_files }}
+
+    - name: Run full lint & test (if pushing to master)
+      run: npm run full-test
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+      env:
+        CI: true
