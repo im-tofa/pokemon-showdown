@@ -7,7 +7,7 @@ let battle;
 
 // tests are derived from the following post and related quotes:
 // https://www.smogon.com/forums/threads/scarlet-violet-battle-mechanics-research.3709545/post-9417627
-describe('Ceaseless Edge', function () {
+describe('Ceaseless Edge ', function () {
 	afterEach(function () {
 		battle.destroy();
 	});
