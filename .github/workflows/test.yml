@@ -27,14 +27,6 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-        
-    - name: Cache node_modules or restore if already cached
-      uses: actions/cache@v3
-      with:
-        path: 'node_modules'
-        key: ${{ runner.os }}-node-${{ matrix.node-version }}-modules-${{ hashFiles('package-lock.json') }}
-          
-    - run: npm ci
     
     - name: Determine which files to lint (if pull request)
       if: ${{ github.event_name == 'pull_request' }}
@@ -56,6 +48,14 @@ jobs:
           data/**
           sim/**
 
+    - name: Cache node_modules or restore if already cached
+      uses: actions/cache@v3
+      with:
+        path: 'node_modules'
+        key: ${{ runner.os }}-node-${{ matrix.node-version }}-modules-${{ hashFiles('package-lock.json') }}
+          
+    - run: npm ci
+    
     - name: Run selective lint & neccessary tests (if pull request)
       if: ${{ github.event_name == 'pull_request' }}
       run: npm run full-test-ci
