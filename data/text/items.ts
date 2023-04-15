@@ -3,7 +3,7 @@ export const ItemsText: {[k: string]: ItemText} = {
 		name: "Ability Shield",
 		desc: "Holder's Ability cannot be changed by any effect.",
 
-		block: "  [POKEMON]'s Ability is protected by the effects of its Ability Shield!",
+		block: "",
 	},
 	abomasite: {
 		name: "Abomasite",
