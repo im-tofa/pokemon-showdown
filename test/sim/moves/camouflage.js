@@ -5,7 +5,7 @@ const common = require('./../../common');
 
 let battle;
 
-describe('Camouflage', function () {
+describe('Camouflage ', function () {
 	afterEach(function () {
 		battle.destroy();
 	});
