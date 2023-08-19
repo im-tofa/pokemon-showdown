@@ -20,7 +20,16 @@ jobs:
         node-version: [16.x]
 
     steps:
-    - uses: actions/checkout@v3
+    - name: actions/checkout@v3 (if pull request)
+      uses: actions/checkout@v3
+      if: ${{ github.event_name == 'pull_request' }}
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 100 # assumes PR is no larger than 100 commits. Other solutions are needlessly complex.
+      
+    - name: actions/checkout@v3
+      uses: actions/checkout@v3
+      if: ${{ github.event_name != 'pull_request' }}
 
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
