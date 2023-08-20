@@ -30,6 +30,7 @@ export type ChannelID = 0 | 1 | 2 | 3 | 4;
 
 export type ChannelMessages<T extends ChannelID | -1> = Record<T, string[]>;
 
+
 const splitRegex = /^\|split\|p([1234])\n(.*)\n(.*)|.+/gm;
 
 export function extractChannelMessages<T extends ChannelID | -1>(message: string, channelIds: T[]): ChannelMessages<T> {
