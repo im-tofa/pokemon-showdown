@@ -31,12 +31,6 @@ jobs:
         cache: 'npm'
 
     - run: npm ci
-
-    - name: Run full lint & test (if push to master)
-      run: npm run full-test
-      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-      env:
-        CI: true
         
     - name: Determine which files to lint (if pull request)
       if: ${{ github.event_name == 'pull_request' }}
@@ -78,3 +72,9 @@ jobs:
         CI: true
         FILES: ${{ steps.changed-files.outputs.all_changed_and_modified_files }}
         SKIPSIMTESTS: ${{ steps.changed-directories.outputs.all_changed_and_modified_files == '' }}
+
+    - name: Run full lint & test (if push to master)
+      run: npm run full-test
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+      env:
+        CI: true
