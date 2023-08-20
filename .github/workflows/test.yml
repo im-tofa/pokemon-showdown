@@ -20,16 +20,9 @@ jobs:
         node-version: [16.x]
 
     steps:
-    - name: actions/checkout@v3 (if pull request)
-      uses: actions/checkout@v3
-      if: ${{ github.event_name == 'pull_request' }}
+    - uses: actions/checkout@v3
       with:
-        ref: ${{ github.event.pull_request.head.sha }}
-        fetch-depth: 100 # assumes PR is no larger than 100 commits. Other solutions are needlessly complex.
-      
-    - name: actions/checkout@v3
-      uses: actions/checkout@v3
-      if: ${{ github.event_name != 'pull_request' }}
+        fetch-depth: 100 # assumes PR/push to master is no larger than 100 commits. Other solutions are needlessly complex.
 
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
@@ -39,6 +32,12 @@ jobs:
 
     - run: npm ci
 
+    - name: Run full lint & test (if push to master)
+      run: npm run full-test
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+      env:
+        CI: true
+        
     - name: Determine which files to lint (if pull request)
       if: ${{ github.event_name == 'pull_request' }}
       id: changed-files
@@ -79,9 +78,3 @@ jobs:
         CI: true
         FILES: ${{ steps.changed-files.outputs.all_changed_and_modified_files }}
         SKIPSIMTESTS: ${{ steps.changed-directories.outputs.all_changed_and_modified_files == '' }}
-
-    - name: Run full lint & test (if push to master)
-      run: npm run full-test
-      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-      env:
-        CI: true
