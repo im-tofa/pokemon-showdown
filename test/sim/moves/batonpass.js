@@ -13,7 +13,7 @@ describe(`Baton Pass`, function () {
 	it(`should switch the user out, passing with it a variety of effects`, function () {
 		battle = common.createBattle([[
 			{species: 'wynaut', moves: ['focusenergy', 'substitute', 'swordsdance', 'batonpass']},
-			{species: 'wingull', moves: ['sleeptalk']}, 
+			{species: 'wingull', moves: ['sleeptalk']},
 		], [
 			{species: 'pichu', ability: 'noguard', moves: ['leechseed']},
 		]]);

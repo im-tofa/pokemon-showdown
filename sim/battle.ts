@@ -291,7 +291,7 @@ export class Battle {
 
 		// timing is early enough to hook into ModifySpecies event
 		for (const rule of this.ruleTable.keys()) {
-			if ('+*-!'.includes(rule.charAt(0))) continue; 
+			if ('+*-!'.includes(rule.charAt(0))) continue;
 			const subFormat = this.dex.formats.get(rule);
 			if (subFormat.exists) {
 				const hasEventHandler = Object.keys(subFormat).some(
