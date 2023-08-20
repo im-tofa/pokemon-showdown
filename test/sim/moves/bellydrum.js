@@ -5,6 +5,7 @@ const common = require('./../../common');
 
 let battle;
 
+
 describe('Belly Drum', function () {
 	afterEach(() => battle.destroy());
 
