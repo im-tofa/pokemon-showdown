@@ -540,7 +540,7 @@ export class Pokemon {
 		}
 
 		// stat boosts
-		let boosts: SparseBoostsTable = {}; 
+		let boosts: SparseBoostsTable = {};
 		const boostName = statName as BoostID;
 		boosts[boostName] = boost;
 		boosts = this.battle.runEvent('ModifyBoost', statUser || this, null, null, boosts);
