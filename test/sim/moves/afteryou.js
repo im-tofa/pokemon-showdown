@@ -10,6 +10,7 @@ describe('After You', function () {
 		battle.destroy();
 	});
 
+
 	it(`should cause the targeted Pokemon to immediately move next`, function () {
 		battle = common.createBattle({gameType: 'doubles'}, [[
 			{species: 'Wynaut', ability: 'prankster', moves: ['afteryou']},
