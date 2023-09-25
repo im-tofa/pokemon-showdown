@@ -68,7 +68,8 @@ export class RandomGen3Teams extends RandomGen4Teams {
 				cull: (
 					counter.setupType !== 'Special' ||
 					(counter.get('Special') + counter.get('specialpool') < 2 && !moves.has('batonpass') &&
-					!moves.has('refresh') && !restTalk)
+					!moves.has('refresh') && !restTalk) ||
+					!counter.get('Special')
 				),
 				isSetup: true,
 			};
@@ -457,7 +458,7 @@ export class RandomGen3Teams extends RandomGen4Teams {
 				const requiresStab = (
 					!counter.get('stab') &&
 					!moves.has('seismictoss') && !moves.has('nightshade') &&
-					species.id !== 'castform' && species.id !== 'umbreon' &&
+					species.id !== 'umbreon' &&
 					// If a Flying-type has Psychic, it doesn't need STAB
 					!(moves.has('psychic') && types.has('Flying')) &&
 					!(types.has('Ghost') && species.baseStats.spa > species.baseStats.atk) &&
@@ -701,7 +702,7 @@ export class RandomGen3Teams extends RandomGen4Teams {
 				}
 			}
 
-			// Updateeam details
+			// Update team details
 			if (set.ability === 'Drizzle' || set.moves.includes('raindance')) teamDetails.rain = 1;
 			if (set.ability === 'Sand Stream') teamDetails.sand = 1;
 			if (set.moves.includes('spikes')) teamDetails.spikes = 1;

@@ -78,9 +78,18 @@ export class PokemonSources {
 	limitedEggMoves?: ID[] | null;
 	/**
 	 * Moves that should be in limitedEggMoves that would otherwise be skipped
-	 * because they can be learned via Gen 1-2 tradeback
+	 * because they can be learned universally in a past generation
 	 */
 	possiblyLimitedEggMoves?: ID[] | null;
+	/**
+	 * Moves that should be in limitedEggMoves that would otherwise be skipped
+	 * because they can be learned via Gen 1-2 tradeback
+	 */
+	tradebackLimitedEggMoves?: ID[] | null;
+	/**
+	 * Tracks level up egg moves for female-only Pokemon
+	 */
+	levelUpEggMoves?: ID[] | null;
 	/**
 	 * Moves that can be learned via Pomeg glitch and does not require a
 	 * particular parent to learn
@@ -126,8 +135,10 @@ export class PokemonSources {
 	}
 	add(source: PokemonSource, limitedEggMove?: ID | null) {
 		if (this.sources[this.sources.length - 1] !== source) this.sources.push(source);
-		if (limitedEggMove && source.substr(0, 3) === '1ET') {
-			this.possiblyLimitedEggMoves = [limitedEggMove];
+		if (limitedEggMove) {
+			if (source.substr(0, 3) === '1ET') {
+				this.tradebackLimitedEggMoves = [limitedEggMove];
+			}
 		}
 		if (limitedEggMove && this.limitedEggMoves !== null) {
 			this.limitedEggMoves = [limitedEggMove];
@@ -227,11 +238,41 @@ export class PokemonSources {
 				this.possiblyLimitedEggMoves.push(...other.possiblyLimitedEggMoves);
 			}
 		}
+		if (other.tradebackLimitedEggMoves) {
+			if (!this.tradebackLimitedEggMoves) {
+				this.tradebackLimitedEggMoves = other.tradebackLimitedEggMoves;
+			} else {
+				this.tradebackLimitedEggMoves.push(...other.tradebackLimitedEggMoves);
+			}
+		}
+		if (other.levelUpEggMoves) {
+			if (!this.levelUpEggMoves) {
+				this.levelUpEggMoves = other.levelUpEggMoves;
+			} else {
+				this.levelUpEggMoves.push(...other.levelUpEggMoves);
+			}
+		}
 		if (other.pomegEggMoves) {
 			if (!this.pomegEggMoves) {
 				this.pomegEggMoves = other.pomegEggMoves;
 			} else {
 				this.pomegEggMoves.push(...other.pomegEggMoves);
+			}
+		}
+		if (this.possiblyLimitedEggMoves && !this.sourcesBefore) {
+			const eggSources = this.sources.filter(source => source.charAt(1) === 'E');
+			let minEggGen = parseInt(eggSources[0]);
+			for (const source of eggSources) {
+				minEggGen = Math.min(minEggGen, parseInt(source.charAt(0)));
+			}
+			if (minEggGen) {
+				for (const eggMoveAndGen of this.possiblyLimitedEggMoves) {
+					if (!this.limitedEggMoves) this.limitedEggMoves = [];
+					if (parseInt(eggMoveAndGen.charAt(0)) < minEggGen) {
+						const eggMove = toID(eggMoveAndGen.substr(1));
+						if (!this.limitedEggMoves.includes(eggMove)) this.limitedEggMoves.push(eggMove);
+					}
+				}
 			}
 		}
 		let eggTradebackLegal = false;
@@ -241,8 +282,8 @@ export class PokemonSources {
 				break;
 			}
 		}
-		if (!eggTradebackLegal && this.possiblyLimitedEggMoves) {
-			for (const eggMove of this.possiblyLimitedEggMoves) {
+		if (!eggTradebackLegal && this.tradebackLimitedEggMoves) {
+			for (const eggMove of this.tradebackLimitedEggMoves) {
 				if (!this.limitedEggMoves) this.limitedEggMoves = [];
 				if (!this.limitedEggMoves.includes(eggMove)) this.limitedEggMoves.push(eggMove);
 			}
@@ -377,9 +418,10 @@ export class TeamValidator {
 				problems = problems.concat(setProblems);
 			}
 			if (options.removeNicknames) {
+				const useCrossSpeciesNicknames = format.name.includes('Cross Evolution') || ruleTable.has('franticfusionsmod');
 				const species = dex.species.get(set.species);
 				let crossSpecies: Species;
-				if (format.name === '[Gen 9] Cross Evolution' && (crossSpecies = dex.species.get(set.name)).exists) {
+				if (useCrossSpeciesNicknames && (crossSpecies = dex.species.get(set.name)).exists) {
 					set.name = crossSpecies.name;
 				} else {
 					set.name = species.baseSpecies;
@@ -618,6 +660,9 @@ export class TeamValidator {
 			} else {
 				set.hpType = type.name;
 			}
+		}
+		if (species.forceTeraType) {
+			set.teraType = species.forceTeraType;
 		}
 		if (set.teraType) {
 			const type = dex.types.get(set.teraType);
@@ -1285,15 +1330,19 @@ export class TeamValidator {
 		return this.validateEvent(set, setSources, eventData, eventSpecies, because as any) as any;
 	}
 
-	findEggMoveFathers(source: PokemonSource, species: Species, setSources: PokemonSources): boolean;
-	findEggMoveFathers(source: PokemonSource, species: Species, setSources: PokemonSources, getAll: true): ID[] | null;
-	findEggMoveFathers(source: PokemonSource, species: Species, setSources: PokemonSources, getAll = false) {
+	findEggMoveFathers(source: PokemonSource, species: Species, setSources: PokemonSources,
+		getAll?: false, pokemonBlacklist?: ID[], noRecurse?: true): boolean;
+	findEggMoveFathers(source: PokemonSource, species: Species, setSources: PokemonSources, getAll?: true): ID[] | null;
+	findEggMoveFathers(source: PokemonSource, species: Species, setSources: PokemonSources,
+		getAll?: boolean, pokemonBlacklist?: ID[], noRecurse?: boolean) {
+		if (!pokemonBlacklist) pokemonBlacklist = [];
+		if (!pokemonBlacklist.includes(species.id)) pokemonBlacklist.push(species.id);
 		// tradebacks have an eggGen of 2 even though the source is 1ET
 		const eggGen = Math.max(parseInt(source.charAt(0)), 2);
 		const fathers: ID[] = [];
 		// Gen 6+ don't have egg move incompatibilities
 		// (except for certain cases with baby Pokemon not handled here)
-		if (!getAll && eggGen >= 6 && species.gender !== 'F') return true;
+		if (!getAll && eggGen >= 6 && !setSources.levelUpEggMoves) return true;
 
 		let eggMoves = setSources.limitedEggMoves;
 		if (eggGen === 3) eggMoves = eggMoves?.filter(eggMove => !setSources.pomegEggMoves?.includes(eggMove));
@@ -1303,7 +1352,8 @@ export class TeamValidator {
 			// which aren't limited and so aren't in `limitedEggMoves`
 			return getAll ? ['*'] : true;
 		}
-		if (!getAll && eggMoves.length <= 1 && species.gender !== 'F') return true;
+		if (!getAll && eggMoves.length <= 1 && !setSources.levelUpEggMoves) return true;
+		if (setSources.levelUpEggMoves && eggGen >= 6) eggMoves = setSources.levelUpEggMoves;
 
 		// gen 1 eggs come from gen 2 breeding
 		const dex = this.dex.gen === 1 ? this.dex.mod('gen2') : this.dex;
@@ -1338,7 +1388,7 @@ export class TeamValidator {
 			if (!dex.species.getLearnset(father.id)) continue;
 			// something is clearly wrong if its only possible father is itself
 			// (exceptions: ExtremeSpeed Dragonite, Self-destruct Snorlax)
-			if (species.id === father.id && !['dragonite', 'snorlax'].includes(father.id)) continue;
+			if (pokemonBlacklist.includes(father.id) && !['dragonite', 'snorlax'].includes(father.id)) continue;
 			// don't check NFE Pokémon - their evolutions will know all their moves and more
 			// exception: Combee/Salandit, because their evos can't be fathers
 			if (father.evos.length) {
@@ -1350,7 +1400,7 @@ export class TeamValidator {
 			if (!father.eggGroups.some(eggGroup => eggGroups.includes(eggGroup))) continue;
 
 			// father must be able to learn the move
-			if (!this.fatherCanLearn(father, eggMoves, eggGen)) continue;
+			if (!this.fatherCanLearn(species, father, eggMoves, eggGen, pokemonBlacklist, noRecurse)) continue;
 
 			// father found!
 			if (!getAll) return true;
@@ -1364,25 +1414,27 @@ export class TeamValidator {
 	 * We could, if we wanted, do a complete move validation of the father's
 	 * moveset to see if it's valid. This would recurse and be NP-Hard so
 	 * instead we won't. We'll instead use a simplified algorithm: The father
-	 * can learn the moveset if it has at most one egg/event move.
-	 *
-	 * `eggGen` should be 5 or earlier. Later gens should never call this
-	 * function (the answer is always yes).
+	 * is allowed to have multiple egg moves and a maximum of one move from
+	 * any other restrictive source; recursion is done only if there are less
+	 * egg moves to validate or if the father has an egg group it doesn't
+	 * share with the egg Pokemon. Recursion is also limited to two iterations
+	 * of calling findEggMoveFathers.
 	 */
-	fatherCanLearn(species: Species, moves: ID[], eggGen: number) {
+	fatherCanLearn(baseSpecies: Species, species: Species, moves: ID[], eggGen: number, pokemonBlacklist: ID[],
+		noRecurse: boolean | undefined) {
 		let learnset = this.dex.species.getLearnset(species.id);
 		if (!learnset) return false;
 
 		if (species.id === 'smeargle') return true;
 		const canBreedWithSmeargle = species.eggGroups.includes('Field');
 
-		let eggMoveCount = 0;
+		const allEggSources = new PokemonSources();
+		allEggSources.sourcesBefore = eggGen;
 		for (const move of moves) {
 			let curSpecies: Species | null = species;
-			/** 1 = can learn from egg, 2 = can learn unrestricted */
-			let canLearn: 0 | 1 | 2 = 0;
-
+			const eggSources = new PokemonSources();
 			while (curSpecies) {
+				const eggPokemon = curSpecies.prevo ? curSpecies.id : '';
 				learnset = this.dex.species.getLearnset(curSpecies.id);
 				if (learnset && learnset[move]) {
 					for (const moveSource of learnset[move]) {
@@ -1390,22 +1442,45 @@ export class TeamValidator {
 						if (parseInt(moveSource.charAt(0)) > eggGen) continue;
 						const canLearnFromSmeargle = moveSource.charAt(1) === 'E' && canBreedWithSmeargle;
 						if (!'ESDV'.includes(moveSource.charAt(1)) || canLearnFromSmeargle) {
-							canLearn = 2;
+							eggSources.addGen(parseInt(moveSource.charAt(0)));
 							break;
 						} else {
-							canLearn = 1;
+							if (moveSource.charAt(1) === 'E') {
+								eggSources.add(moveSource + eggPokemon, move);
+								if (eggGen === 2 && this.dex.moves.getByID(move).gen === 1) eggSources.add('1ET' + eggPokemon, move);
+							} else {
+								eggSources.add(moveSource + eggPokemon);
+							}
 						}
 					}
 				}
-				if (canLearn === 2) break;
+				if (eggSources.sourcesBefore === eggGen) break;
 				curSpecies = this.learnsetParent(curSpecies);
 			}
 
-			if (!canLearn) return false;
-			if (canLearn === 1) {
-				eggMoveCount++;
-				if (eggMoveCount > 1) return false;
+			if (eggSources.sourcesBefore === eggGen) continue;
+			if (!eggSources.sourcesBefore && !eggSources.sources.length) return false;
+			const onlyEggSources = eggSources.sources.filter(source => source.charAt(1) === 'E');
+			if (eggGen >= 3 && onlyEggSources.length && eggSources.limitedEggMoves === null && eggSources.sourcesBefore) {
+				eggSources.possiblyLimitedEggMoves = [toID(eggSources.sourcesBefore + move)];
 			}
+			allEggSources.intersectWith(eggSources);
+			if (!allEggSources.size()) return false;
+		}
+		pokemonBlacklist.push(species.id);
+		if (allEggSources.limitedEggMoves && allEggSources.limitedEggMoves.length > 1) {
+			if (noRecurse) return false;
+			let canChainbreed = false;
+			for (const fatherEggGroup of species.eggGroups) {
+				if (!baseSpecies.eggGroups.includes(fatherEggGroup)) {
+					canChainbreed = true;
+					break;
+				}
+			}
+			if (!canChainbreed && allEggSources.limitedEggMoves.length === moves.length) return false;
+			const setSources = new PokemonSources();
+			setSources.limitedEggMoves = allEggSources.limitedEggMoves;
+			return this.findEggMoveFathers(allEggSources.sources[0], species, setSources, false, pokemonBlacklist, true);
 		}
 		return true;
 	}
@@ -2403,6 +2478,14 @@ export class TeamValidator {
 						cantLearnReason = `can only be learned in gens without Hidden Abilities.`;
 						continue;
 					}
+
+					const ability = dex.abilities.get(set.ability);
+					if (dex.gen < 6 && ability.gen > learnedGen && !checkingPrevo) {
+						// You can evolve a transfered mon to reroll for its new Ability.
+						cantLearnReason = `is learned in gen ${learnedGen}, but the Ability ${ability.name} did not exist then.`;
+						continue;
+					}
+
 					if (!species.isNonstandard) {
 						// HMs can't be transferred
 						if (dex.gen >= 4 && learnedGen <= 3 && [
@@ -2472,6 +2555,7 @@ export class TeamValidator {
 						if (learned.slice(1) === 'Eany') {
 							if (species.gender === 'F') {
 								limitedEggMove = move.id;
+								moveSources.levelUpEggMoves = [move.id];
 							} else {
 								limitedEggMove = null;
 							}
@@ -2607,6 +2691,10 @@ export class TeamValidator {
 		if (!moveSources.size()) {
 			if (cantLearnReason) return `'s move ${move.name} ${cantLearnReason}`;
 			return ` can't learn ${move.name}.`;
+		}
+		const eggSources = moveSources.sources.filter(source => source.charAt(1) === 'E');
+		if (dex.gen >= 3 && eggSources.length && moveSources.limitedEggMoves === null && moveSources.sourcesBefore) {
+			moveSources.possiblyLimitedEggMoves = [toID(moveSources.sourcesBefore + move.id)];
 		}
 		const backupSources = setSources.sources;
 		const backupSourcesBefore = setSources.sourcesBefore;

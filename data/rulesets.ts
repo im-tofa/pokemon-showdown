@@ -737,6 +737,7 @@ export const Rulesets: {[k: string]: FormatData} = {
 				gooey: 'tanglinghair',
 				insomnia: 'vitalspirit',
 				ironbarbs: 'roughskin',
+				keeneye: 'illuminate',
 				libero: 'protean',
 				minus: 'plus',
 				moxie: 'chillingneigh',
@@ -1672,6 +1673,7 @@ export const Rulesets: {[k: string]: FormatData} = {
 		effectType: 'Rule',
 		name: 'Open Team Sheets',
 		desc: "Allows each player to see the Pok&eacute;mon and all non-stat information about them, before they choose their lead Pok&eacute;mon",
+		mutuallyExclusiveWith: 'forceopenteamsheets',
 		onTeamPreview() {
 			const msg = 'uhtml|otsrequest|<button name="send" value="/acceptopenteamsheets" class="button" style="margin-right: 10px;"><strong>Accept Open Team Sheets</strong></button><button name="send" value="/rejectopenteamsheets" class="button" style="margin-top: 10px"><strong>Deny Open Team Sheets</strong></button>';
 			for (const side of this.sides) {
@@ -1688,12 +1690,19 @@ export const Rulesets: {[k: string]: FormatData} = {
 		effectType: 'Rule',
 		name: 'Force Open Team Sheets',
 		desc: "Allows each player to see the Pok&eacute;mon and all non-stat information about them, before they choose their lead Pok&eacute;mon",
+		mutuallyExclusiveWith: 'openteamsheets',
 		onTeamPreview() {
 			let buf = 'raw|';
 			for (const side of this.sides) {
 				buf += Utils.html`<div class="infobox" style="margin-top:5px"><details><summary>Open Team Sheet for ${side.name}</summary>${Teams.export(side.team, {hideStats: true})}</details></div>`;
 			}
-			this.add(buf);
+			if (this.rated === true) {
+				for (const side of this.sides) {
+					this.addSplit(side.id, [buf]);
+				}
+			} else {
+				this.add(buf);
+			}
 		},
 	},
 	aaarestrictedabilities: {
@@ -2567,6 +2576,12 @@ export const Rulesets: {[k: string]: FormatData} = {
 			for (const set of team) {
 				const species = this.dex.species.get(set.species);
 				const fusion = this.dex.species.get(set.name);
+				if (fusion.exists) {
+					set.name = fusion.name;
+				} else {
+					set.name = species.baseSpecies;
+					if (species.baseSpecies === 'Unown') set.species = 'Unown';
+				}
 				if (fusion.name === species.name) continue;
 				donors.add(fusion.name);
 			}
@@ -2574,8 +2589,15 @@ export const Rulesets: {[k: string]: FormatData} = {
 				if (number > 1) {
 					return [`You can only fuse with any Pok\u00e9 once.`, `(You have ${number} Pok\u00e9mon fused with ${fusionName}.)`];
 				}
-				if (this.ruleTable.isBannedSpecies(this.dex.species.get(fusionName))) {
+				const fusion = this.dex.species.get(fusionName);
+				if (this.ruleTable.isBannedSpecies(fusion) || fusion.battleOnly) {
 					return [`Pok\u00e9mon can't fuse with banned Pok\u00e9mon.`, `(${fusionName} is banned.)`];
+				}
+				if (fusion.isNonstandard &&
+					!(this.ruleTable.has(`+pokemontag:${this.toID(fusion.isNonstandard)}`) ||
+						this.ruleTable.has(`+pokemon:${fusion.id}`) ||
+						this.ruleTable.has(`+basepokemon:${this.toID(fusion.baseSpecies)}`))) {
+					return [`${fusion.name} is marked as ${fusion.isNonstandard}, which is banned.`];
 				}
 			}
 		},
@@ -2593,6 +2615,36 @@ export const Rulesets: {[k: string]: FormatData} = {
 				newSpecies.bst += newSpecies.baseStats[stat];
 			}
 			return newSpecies;
+		},
+	},
+	proteanpalacemod: {
+		effectType: 'Rule',
+		name: "Protean Palace Mod",
+		desc: `Each Pok&eacute;mon innately has Protean.`,
+		onBegin() {
+			this.add('rule', 'Protean Palace Mod: Every Pok\u00e9mon innately has Protean.');
+		},
+		onSwitchIn(pokemon) {
+			if (!pokemon.hasAbility(['libero', 'protean'])) {
+				const effect = 'ability:protean';
+				pokemon.addVolatile(effect);
+			}
+		},
+	},
+	bestof: {
+		effectType: 'ValidatorRule',
+		name: 'Best Of',
+		desc: "Allows players to define a best-of series where the winner of the series is the winner of the majority of games.",
+		hasValue: 'positive-integer',
+		onValidateRule(value) {
+			const num = Number(value);
+			if (num > 9 || num < 3 || num % 2 !== 1) {
+				throw new Error("Series length must be an odd number between three and nine (inclusive).");
+			}
+			if (!['singles', 'doubles'].includes(this.format.gameType)) {
+				throw new Error("Only single and doubles battles can be a Best-of series.");
+			}
+			return value;
 		},
 	},
 };
