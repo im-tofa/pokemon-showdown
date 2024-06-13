@@ -32,6 +32,8 @@ jobs:
 
     - run: npm ci
 
+    # TODO selective lint & does not always full-test PRs that only change tests
+    # TODO selective lint does not include tests at all
     - name: Determine which files to lint (if pull request)
       if: ${{ github.event_name == 'pull_request' }}
       id: changed-files

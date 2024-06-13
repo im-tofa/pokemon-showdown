@@ -8,7 +8,7 @@ let battle;
 describe('After You', function () {
 	afterEach(function () {
 		battle.destroy();
-	});
+	}); 
 
 	it(`should cause the targeted Pokemon to immediately move next`, function () {
 		battle = common.createBattle({gameType: 'doubles'}, [[
